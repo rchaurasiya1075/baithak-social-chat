@@ -1,0 +1,13 @@
+{
+  "name": "baithak-social-chat",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Social group chat for sharing Ludo room codes. No stakes, no wallet, no payouts.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

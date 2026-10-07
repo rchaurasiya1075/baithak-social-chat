@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Baithak — room chat</title>
+<style>
+  :root {
+    --ink: #0e1412;
+    --panel: #16211c;
+    --card: #1d2b25;
+    --line: #2c4036;
+    --text: #f3f7f4;
+    --muted: #9bb0a6;
+    --green: #1f8a4c;
+    --mint: #3ddc84;
+    --gold: #e2b15a;
+    --danger: #e06a5c;
+    --me: #1b5e3b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--ink); color: var(--text); font-family: "Segoe UI", system-ui, sans-serif; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  #app { max-width: 480px; margin: 0 auto; height: 100%; display: flex; flex-direction: column; background: #101815; position: relative; }
+  .gate { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 28px; gap: 14px; }
+  .mark { width: 64px; height: 64px; border-radius: 18px; background: linear-gradient(145deg, #2a8f55, #e2b15a); display: grid; place-items: center; font-weight: 800; font-size: 28px; color: #102017; }
+  h1 { margin: 8px 0 0; font-size: 32px; letter-spacing: -0.04em; }
+  p.lead { margin: 0; color: var(--muted); line-height: 1.45; }
+  label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
+  input, select {
+    width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; outline: none;
+  }
+  input:focus, select:focus { border-color: var(--mint); }
+  .btn { border: 0; border-radius: 12px; padding: 12px 14px; background: var(--green); color: white; font-weight: 700; }
+  .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--text); }
+  .btn.gold { background: var(--gold); color: #1c1406; }
+  .btn.small { padding: 8px 10px; border-radius: 10px; font-size: 13px; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  header.top { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); background: #13201b; }
+  .ava { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: #244233; font-weight: 700; }
+  .top h2 { margin: 0; font-size: 16px; }
+  .top small { color: var(--muted); }
+  .bell { margin-left: auto; background: transparent; border: 0; font-size: 18px; }
+  main { flex: 1; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .sys { align-self: center; background: #24362d; color: #c9ddd2; font-size: 12px; padding: 6px 10px; border-radius: 10px; max-width: 90%; text-align: center; }
+  .bubble { max-width: 78%; padding: 8px 10px; border-radius: 12px; background: var(--card); }
+  .bubble.me { align-self: flex-end; background: var(--me); }
+  .bubble .who { font-size: 11px; color: var(--gold); margin-bottom: 2px; }
+  .bubble .time { display: block; text-align: right; font-size: 10px; color: #b7c9bf; margin-top: 4px; }
+  .card {
+    background: linear-gradient(180deg, #24382e, #1a2822); border: 1px solid #3d5a49; border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .card .tag { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .code {
+    font-family: ui-monospace, monospace; letter-spacing: 0.14em; font-size: 20px; background: #0e1713; border-radius: 10px; padding: 8px 10px; flex: 1;
+  }
+  .timer { color: var(--mint); font-variant-numeric: tabular-nums; font-weight: 700; }
+  .composer { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); background: #13201b; }
+  .composer input { flex: 1; }
+  nav.bot { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); background: #101a16; }
+  nav.bot button { background: transparent; border: 0; padding: 10px 4px 12px; color: var(--muted); font-size: 12px; }
+  nav.bot button.on { color: var(--mint); }
+  .sheet {
+    position: absolute; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: flex-end;
+  }
+  .sheet form { width: 100%; background: #18241e; border-radius: 18px 18px 0 0; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .list-item { background: var(--card); border-radius: 14px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .pill { font-size: 11px; padding: 3px 8px; border-radius: 99px; background: #2a4034; color: var(--mint); width: fit-content; }
+  .note { font-size: 12px; color: var(--muted); }
+  .switch { display: flex; gap: 6px; padding: 8px 12px; border-top: 1px dashed var(--line); }
+  .switch button { flex: 1; }
+  .hide { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const GAMES = ["Ludo King", "Carrom", "Chess"];
+const MODES = ["Classic", "Quick", "Arrow"];
+const TIMER_MS = 15 * 60 * 1000;
+
+const demo = {
+  me: null,
+  members: [],
+  messages: [{ id: "m0", type: "system", text: "Demo mode. Doosra player switch karke accept / copy dekh sakte ho.", at: Date.now() }],
+  matches: []
+};
+
+let live = null;
+let me = null;
+let state = { members: [], messages: [], matches: [] };
+let tab = "chat";
+let sheet = null;
+let tick = null;
+
+function uid(p) { return p + Math.random().toString(36).slice(2, 9); }
+function time(ts) {
+  const d = new Date(ts);
+  return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+}
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&", "<": "<", ">": ">", '"': """ }[c]));
+}
+
+function connect(name) {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  const host = location.host;
+  if (!host || location.protocol === "file:") return failDemo(name);
+  let sock;
+  try { sock = new WebSocket(proto + "://" + host); } catch { return failDemo(name); }
+  const timer = setTimeout(() => { try { sock.close(); } catch {} failDemo(name); }, 1500);
+  sock.onopen = () => {
+    clearTimeout(timer);
+    live = sock;
+    sock.send(JSON.stringify({ type: "join", name }));
+  };
+  sock.onmessage = (ev) => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type === "welcome") me = { id: msg.userId, name: msg.name };
+    if (msg.type === "state") { state = msg.state; render(); }
+  };
+  sock.onclose = () => { if (!me) failDemo(name); };
+  sock.onerror = () => {};
+}
+
+function failDemo(name) {
+  live = null;
+  me = { id: "me", name };
+  demo.me = me;
+  demo.members = [{ id: "me", name }, { id: "friend", name: "Rahul" }];
+  state = { members: demo.members, messages: demo.messages, matches: demo.matches };
+  render();
+}
+
+function send(payload) {
+  if (live && live.readyState === 1) {
+    live.send(JSON.stringify(payload));
+    return;
+  }
+  demoAct(payload);
+}
+
+function demoAct(msg) {
+  if (msg.type === "chat") {
+    demo.messages.push({ id: uid("m"), type: "chat", userId: me.id, name: me.name, text: msg.text, at: Date.now() });
+  }
+  if (msg.type === "challenge") {
+    const match = {
+      id: uid("g"), game: msg.game, mode: msg.mode, note: msg.note || "",
+      hostId: me.id, hostName: me.name, guestId: null, guestName: null,
+      code: "", status: "open", createdAt: Date.now(), codeAt: null
+    };
+    demo.matches.unshift(match);
+    demo.messages.push({ id: uid("m"), type: "challenge", matchId: match.id, at: Date.now() });
+  }
+  const match = demo.matches.find((m) => m.id === msg.matchId);
+  if (match && msg.type === "accept" && match.hostId !== me.id && match.status === "open") {
+    match.status = "locked"; match.guestId = me.id; match.guestName = me.name;
+    demo.messages.push({ id: uid("m"), type: "system", text: me.name + " ne challenge accept kiya.", at: Date.now() });
+  }
+  if (match && msg.type === "code" && match.hostId === me.id) {
+    match.code = String(msg.code || "").toUpperCase();
+    match.status = "live"; match.codeAt = Date.now();
+    demo.messages.push({ id: uid("m"), type: "system", text: "Room code live. 15 min timer chalu.", at: Date.now() });
+  }
+  if (match && msg.type === "done") {
+    match.status = "done";
+    demo.messages.push({ id: uid("m"), type: "system", text: "Match complete.", at: Date.now() });
+  }
+  if (match && msg.type === "cancel") {
+    match.status = "cancelled";
+    demo.messages.push({ id: uid("m"), type: "system", text: "Match cancel.", at: Date.now() });
+  }
+  state = { members: demo.members, messages: demo.messages, matches: demo.matches };
+  render();
+}
+
+function switchDemo(id) {
+  if (live) return;
+  me = demo.members.find((m) => m.id === id);
+  render();
+}
+
+function remain(match) {
+  if (!match.codeAt) return "";
+  const left = Math.max(0, TIMER_MS - (Date.now() - match.codeAt));
+  const m = Math.floor(left / 60000);
+  const s = Math.floor((left % 60000) / 1000);
+  return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+}
+
+function matchById(id) { return state.matches.find((m) => m.id === id); }
+
+function cardHtml(match) {
+  const mine = match.hostId === me.id;
+  let actions = "";
+  if (match.status === "open" && !mine) actions = `<button class="btn small" data-act="accept" data-id="${match.id}">Accept</button>`;
+  if (match.status === "open" && mine) actions = `<span class="note">Koi accept kare, tab room code daalna.</span>`;
+  if (match.status === "locked" && mine) {
+    actions = `<div class="row"><input id="code-${match.id}" placeholder="Room code" maxlength="12" /><button class="btn small gold" data-act="code" data-id="${match.id}">Share</button></div>`;
+  }
+  if (match.status === "locked" && !mine) actions = `<span class="note">Creator room code daal raha hai.</span>`;
+  if (match.status === "live") {
+    actions = `<div class="row"><div class="code">${esc(match.code)}</div><button class="btn small" data-act="copy" data-code="${esc(match.code)}">Copy</button></div>
+      <div class="row"><span class="timer" data-timer="${match.id}">${remain(match)}</span><span class="note">15 min</span></div>`;
+  }
+  if (match.status === "live" && (mine || match.guestId === me.id)) {
+    actions += `<div class="row"><button class="btn small" data-act="done" data-id="${match.id}">Complete</button><button class="btn small ghost" data-act="cancel" data-id="${match.id}">Cancel</button></div>`;
+  }
+  const who = match.guestName ? match.hostName + " vs " + match.guestName : match.hostName + " · waiting";
+  return `<article class="card">
+    <div class="tag">${esc(match.game)} · ${esc(match.mode)}</div>
+    <strong>${esc(who)}</strong>
+    ${match.note ? `<span class="note">${esc(match.note)}</span>` : ""}
+    <span class="pill">${esc(match.status)}</span>
+    ${actions}
+  </article>`;
+}
+
+function render() {
+  const app = document.getElementById("app");
+  if (!me) {
+    app.innerHTML = `<div class="gate">
+      <div class="mark">B</div>
+      <h1>Baithak</h1>
+      <p class="lead">Group chat jahan room code share hota hai. Koi stake nahi, koi wallet nahi — sirf match setup.</p>
+      <div><label>Tumhara naam</label><input id="name" placeholder="Rohit" maxlength="24" /></div>
+      <button class="btn" id="go">Group me jao</button>
+    </div>`;
+    document.getElementById("go").onclick = () => {
+      const name = document.getElementById("name").value.trim();
+      if (!name) return;
+      connect(name);
+    };
+    return;
+  }
+
+  let body = "";
+  if (tab === "chat") {
+    body = state.messages.map((m) => {
+      if (m.type === "system") return `<div class="sys">${esc(m.text)}</div>`;
+      if (m.type === "challenge") {
+        const match = matchById(m.matchId);
+        return match ? cardHtml(match) : "";
+      }
+      const mine = m.userId === me.id;
+      return `<div class="bubble ${mine ? "me" : ""}">${mine ? "" : `<div class="who">${esc(m.name)}</div>`}${esc(m.text)}<span class="time">${time(m.at)}</span></div>`;
+    }).join("");
+  }
+  if (tab === "matches") {
+    body = state.matches.length ? state.matches.map((m) => `<div class="list-item">${cardHtml(m)}</div>`).join("") : `<div class="sys">Abhi koi match nahi.</div>`;
+  }
+  if (tab === "support") {
+    body = `<div class="list-item"><strong>Help</strong><span class="note">Room code Ludo King se copy karke yahan paste karo. Opponent Copy dabayega.</span></div>
+      <div class="list-item"><strong>Rules</strong><span class="note">Yeh social chat hai. Entry fee, pot, ya payout yahan nahi hai.</span></div>
+      <div class="list-item"><strong>Contact</strong><span class="note">Telegram / WhatsApp link admin baad me laga sakta hai. Abhi group chat hi support hai.</span></div>`;
+  }
+
+  const sheetHtml = sheet === "challenge" ? `<div class="sheet"><form id="ch">
+      <strong>Challenge card</strong>
+      <div><label>Game</label><select id="game">${GAMES.map((g) => `<option>${g}</option>`).join("")}</select></div>
+      <div><label>Mode</label><select id="mode">${MODES.map((g) => `<option>${g}</option>`).join("")}</select></div>
+      <div><label>Note</label><input id="note" placeholder="2 player, no team" maxlength="80" /></div>
+      <div class="row"><button type="button" class="btn ghost" id="close">Band</button><button class="btn" type="submit">Create challenge</button></div>
+    </form></div>` : "";
+
+  const demoBar = live ? "" : `<div class="switch"><button class="btn small ${me.id === "me" ? "" : "ghost"}" data-switch="me">Main</button><button class="btn small ${me.id === "friend" ? "" : "ghost"}" data-switch="friend">Rahul (demo)</button></div>`;
+
+  app.innerHTML = `
+    <header class="top"><div class="ava">${esc(me.name.slice(0, 1))}</div><div><h2>Baithak group</h2><small>${state.members.length} online · social, no stakes</small></div><button class="bell" title="notices">•</button></header>
+    <main id="feed">${body}</main>
+    ${tab === "chat" ? `<div class="composer"><input id="text" placeholder="Message" maxlength="400" /><button class="btn ghost" id="open-ch">Challenge</button><button class="btn" id="send">Send</button></div>` : ""}
+    ${demoBar}
+    <nav class="bot">
+      <button data-tab="chat" class="${tab === "chat" ? "on" : ""}">Chat</button>
+      <button data-tab="matches" class="${tab === "matches" ? "on" : ""}">Matches</button>
+      <button data-tab="support" class="${tab === "support" ? "on" : ""}">Support</button>
+    </nav>
+    ${sheetHtml}`;
+
+  const feed = document.getElementById("feed");
+  if (feed) feed.scrollTop = feed.scrollHeight;
+
+  app.querySelectorAll("[data-tab]").forEach((b) => b.onclick = () => { tab = b.dataset.tab; render(); });
+  const open = document.getElementById("open-ch");
+  if (open) open.onclick = () => { sheet = "challenge"; render(); };
+  const close = document.getElementById("close");
+  if (close) close.onclick = () => { sheet = null; render(); };
+  const form = document.getElementById("ch");
+  if (form) form.onsubmit = (e) => {
+    e.preventDefault();
+    send({ type: "challenge", game: document.getElementById("game").value, mode: document.getElementById("mode").value, note: document.getElementById("note").value });
+    sheet = null;
+    tab = "chat";
+    render();
+  };
+  const sendBtn = document.getElementById("send");
+  if (sendBtn) sendBtn.onclick = () => {
+    const input = document.getElementById("text");
+    const text = input.value.trim();
+    if (!text) return;
+    send({ type: "chat", text });
+    input.value = "";
+  };
+  app.querySelectorAll("[data-act]").forEach((b) => b.onclick = async () => {
+    const act = b.dataset.act;
+    const id = b.dataset.id;
+    if (act === "copy") {
+      try { await navigator.clipboard.writeText(b.dataset.code); b.textContent = "Copied"; } catch { b.textContent = b.dataset.code; }
+      return;
+    }
+    if (act === "code") {
+      const code = document.getElementById("code-" + id).value.trim();
+      if (!code) return;
+      send({ type: "code", matchId: id, code });
+      return;
+    }
+    send({ type: act, matchId: id });
+  });
+  app.querySelectorAll("[data-switch]").forEach((b) => b.onclick = () => switchDemo(b.dataset.switch));
+}
+
+setInterval(() => {
+  if (!me) return;
+  document.querySelectorAll("[data-timer]").forEach((el) => {
+    const match = matchById(el.dataset.timer);
+    if (match) el.textContent = remain(match);
+  });
+}, 1000);
+
+render();
+</script>
+</body>
+</html>
